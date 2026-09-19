@@ -79,7 +79,9 @@ to watch what it's doing.
   menu now includes a **Progress** view that turns XP pace, build readiness,
   fleet growth, and leaderboard movement into a clearer “what helps next?”
   summary; leaderboard panels call out your visible rank plus recent up/down
-  movement; the Build and Mining surfaces now render in tighter content shells
+  movement, including the account-scoped identity used by Replicant Space v3;
+  nearby-star views show system hubs and wards, while the Fleet roster preserves
+  attachment, linked-device, and tag metadata; the Build and Mining surfaces now render in tighter content shells
   with scroll wrappers on the truly wide tables, so they stop sprawling
   sideways; the guided Play surface now explains live travel intent more
   plainly, including remote AMI orphan-recovery trips and stale-intel
@@ -141,7 +143,8 @@ to watch what it's doing.
   relay network) is surfaced in the cockpit's BobNet panel as collapsible
   per-channel sections: read `#general` / `#trade` chatter, NPC
   announcements, and other replicants' messages each grouped under their
-  own channel (with a message count), and send your own from the cockpit.
+  own channel (with a message count), see sender codes alongside names when
+  available, and send your own from the cockpit.
   BobNet rides on your relays — bring one online to start listening.
 - **Inbox** — your message inbox leads with a *Mineable sites & salvage*
   panel that pulls newly-discovered resource sites and salvage (with their
@@ -163,7 +166,12 @@ to watch what it's doing.
   fulfils at controllers at its exact location; it never trades without it. You
   can also set the **home base** (the location the
   bot consolidates resources into and builds its system hub) from the
-  cockpit — handy for hub-and-spoke play as your galaxy footprint grows.
+  cockpit — handy for hub-and-spoke play as your galaxy footprint grows. A
+  `relay-supply` upkeep strategy can top up an approved beacon-only system and
+  park the vessel there so the relay bootstrap can finish the command anchor.
+  `observatory-expedition` carries the galactic observatory only to
+  already-anchored frontier systems, prospects for new catalogue targets, and
+  returns it home.
 - **Cross-restart memory** via a local SQLite catalog of sites,
   salvages, history; queryable from the CLI (`san-holo catalog ...`).
   Belt depletion is remembered (6h TTL), so after a restart the bot
@@ -230,7 +238,7 @@ about an unrecognized app — click "More info → Run anyway".
 
 ```sh
 san-holo version
-# san-holo v0.3.1 (commit abcdef1)
+# san-holo v0.4.0 (commit abcdef1)
 ```
 
 ## First run
@@ -284,6 +292,50 @@ san-holo clone -confirm   # execute the clone bootstrap prints
 
 Run `san-holo` with no args for the full flag list.
 
+## API compatibility check
+
+On startup, SanHolo asynchronously compares its bundled API contract with the
+official Replicant Space OpenAPI document. The cockpit header reports `API OK`,
+`API CHANGED`, or `API CHECK?`; automation continues in every state. The result
+is stored in the local catalog and refreshed at most once per 24 hours.
+
+This request is a public `GET` with a three-second timeout. It sends no token,
+cookie, account identifier, game state, or telemetry, and it never downloads an
+update or executes a command. Disable it with
+`SAN_HOLO_DISABLE_API_COMPAT_CHECK=1` or
+`serve -disable-api-compat-check`.
+
+## Optional version checks
+
+SanHolo can call a self-hosted update endpoint, but it is off unless you
+configure one:
+
+```sh
+export SAN_HOLO_VERSION_CHECK_URL="https://your-server.example/san-holo/version-check"
+san-holo serve -version-check-url "$SAN_HOLO_VERSION_CHECK_URL"
+```
+
+Opt out with `SAN_HOLO_DISABLE_VERSION_CHECK=1` or
+`serve -disable-version-check`. The request is a `GET` with only:
+`version`, `commit`, `os`, `arch`, `command`, and `channel`. It never sends API
+tokens, email, account name, replicant code, location, inventory, fleet data,
+logs, or strategy state. Checks use a one-second timeout, fail open, and `serve`
+records the last check in the local catalog so it runs at most once per day.
+
+Endpoint response:
+
+```json
+{
+  "latest_version": "v0.4.0",
+  "minimum_supported_version": "v0.2.0",
+  "release_url": "https://github.com/lhaig/SanHolo/releases/latest",
+  "message": ""
+}
+```
+
+`san-holo version` stays local and immediate; update notices surface in the
+cockpit when `serve` performs the configured daily check.
+
 ## Safety defaults
 
 - Bot starts **stopped** and in **dry-run** — you have to explicitly turn
@@ -292,13 +344,17 @@ Run `san-holo` with no args for the full flag list.
 - Every action is logged to the in-cockpit Activity panel before it fires.
 - The copilot's advice is **suggestive by default** — you decide whether
   to act on it. You can also set an explicit directive from the cockpit
-  (focus_resource / build / explore / relocate / scout / ferry-miners) to
+  (focus_resource / build / explore / relocate / scout /
+  observatory-expedition / ferry-miners) to
   steer the bot, or clear it. `relocate` is the only way to authorise an
   interstellar hop — the bot recalls + stows its fleet first and will not
   abandon a system otherwise. `scout` (param: a target star like `MENKENTAR`)
   sends the home vessel on a scan-and-return run to a promising nearby
   unexplored star to reveal its resources, then ALWAYS brings it home — your
   base never moves.
+  `observatory-expedition` (param: target star) uses a surge carrier to move
+  the galactic observatory to an already-anchored frontier, prospect, and bring
+  the observatory back.
   Autonomous scouting ships disabled; enable the `scout` strategy from the
   cockpit to let the bot pick and visit nearby stars on its own.
   `ferry-miners` (param: a target belt designation like `ACHURD-8-L4`) ships
