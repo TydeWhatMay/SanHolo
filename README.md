@@ -12,11 +12,24 @@ to watch what it's doing.
 
 - **Mines** the belt resources your current build goal actually needs, and
   adapts as resources deplete; opens new sites with survey drones; consolidates
-  loot home with transport drones. When a belt is depleted and miners sit idle,
-  the Mining panel calls out that blocker directly. Idle drones at a remote
-  supply source never mine a resource home already holds more than 100,000
-  of; among the rest they take whatever home holds least of, and they stay
-  idle rather than spend a scarce site on surplus.
+  loot home with transport drones. Salvage is mined rares first, then the
+  minor resources home is not in surplus of, and transports load rares first.
+  Any home-system stockpile holding rares is hauled home even when no salvage
+  report names it, and in other systems a free transport carries stranded
+  rares to the stop your cross-system haul names there (else that system's
+  best-stocked belt), where the freighter picks them up. A stockpile an
+  autofactory or system hub prints from is left alone, transports pause while
+  a relocation, colonise recall or hop involves their system, a refused
+  deposit is retried after ten minutes, and a transport stranded in another
+  system is never sent home, since it cannot cross systems. When a belt is depleted and miners sit idle,
+  the Mining panel calls out that blocker directly. No free drone, on the
+  ship's belt or at a remote supply source, is started or retargeted onto a
+  resource home already holds more than 50,000 of, and a free drone found
+  mining one is moved to something home is short of. Once drones are off a
+  resource it stays off until home falls below 40,000, so a stockpile
+  hovering at the line doesn't swap drones back and forth; among the rest drones
+  take whatever home holds least of (usually rares), and they stay idle rather
+  than spend a scarce site on surplus.
 - **Works idle miners wherever they stand.** SanHolo reads the open sites of
   every belt where your drones sit (and of belts it knows about in systems you
   hold a comms anchor in), one belt every few polls. A free, idle mining drone
@@ -87,13 +100,26 @@ to watch what it's doing.
 - **Salvages** discovered wreck sites automatically.
 - **Repairs** worn drones via maintenance drones before the wear costs
   you mining throughput.
+- **Stations a maintenance drone wherever you mine.** A system with your
+  mining drones and no maintenance drone gets one, carried in the vessel's
+  hold from a system that holds two or more (a system's last one never
+  leaves). It rides along with a mining ferry already going there, or, when
+  that system's miners are worn down to 20 percent capacity or less, the idle
+  vessel makes the trip itself while no directive is set, deploys the drone,
+  sets it patrolling and flies home. Systems with the most worn miners go
+  first. Only when no spare exists anywhere does it queue one maintenance
+  drone at home, keeping home rares above the reserve and carbon and
+  structural above 1,000 and 2,000. At most four drones moved, two trips and
+  two prints a day; a trip that keeps failing or runs past 12 hours ends and
+  asks for help. Turn the `maintenance-station` strategy off to place them
+  yourself.
 - **Cleans up stranded extractor drones** conservatively: when a live scan proves
   the current non-home system has no asteroid belt, SanHolo can decommission
   idle mining/survey drones there in place while leaving comms anchors and all
   protected device types alone. The Fleet posture panel calls this out before
   or while the cleanup runs.
 - **Brings miners home on request.** Set the `recall-miners` directive with
-  a source belt (for example `SIHAIL-BELT-1`) and SanHolo releases that
+  a source belt (for example `NEARBY-BELT-1`) and SanHolo releases that
   system's idle mining drones from its AMI, carries them home in the ship's
   hold a load at a time, deploys them at your home base for the normal
   strategies to retask, and clears the directive when none are left. From a
@@ -145,7 +171,7 @@ to watch what it's doing.
 - **Keeps every system commandable.** While a comms delivery is in flight the
   bot holds a `presence` directive naming the target system, so nothing else
   redirects the ship mid-crossing. The directive clears itself the moment that
-  system can be commanded, and you can see it in the cockpit's status strip
+  system can be commanded, and you can see it in the Bridge's jobs panel
   alongside any directive you set yourself.
 - **Keeps every system commandable.** A beacon lets you *see* a system; only a
   relay or hub lets you *command* one. SanHolo tracks both per star, and when a
@@ -155,6 +181,27 @@ to watch what it's doing.
   get them back. The cockpit's Comms Network graph reads the same per-star model
   the bot plans with, so a system it marks commandable is one the bot can
   actually command, not merely one the ship happens to be visiting.
+- **Keeps your remote system hubs stocked.** A hub's shield lasts 7 days,
+  after which it loses 10% integrity a day unless a maintenance drone in its
+  system has carbon and structural beside it to repair it with. For every
+  hub of yours in another system SanHolo reads that stockpile every quarter
+  hour, and when it covers less than two days of upkeep the idle cargo
+  freighter collects one load at home (in the hub's own upkeep ratio when the
+  game reports it, else 83 carbon : 143 structural), delivers it and flies
+  home. It never takes home carbon below 1,000 or structural below 2,000,
+  only starts with the freighter idle and empty at home while no
+  cross-system haul or trade expedition is using it (a `hub-deploy` run only
+  takes it for its final drop, which waits for an upkeep trip), makes at most one trip per hub a day and three a week, and asks
+  for help when commands cannot reach the hub, when home is too low, or when
+  the weekly cap is reached. If home is at its floor for a resource the hub
+  itself is short of, it sends no short load and asks for help naming that
+  resource. While a cross-system haul or trade expedition holds the freighter
+  and a hub with its shield down is under the line, it asks for help. A
+  refused freighter command waits 10 minutes before the same step is tried
+  again, and three refused loads in six hours stop new trips and ask for
+  help. A trip that cannot deliver within a day brings its load home. The cockpit's Comms Network menu lists each remote hub with
+  its integrity, days of shield left, stockpile and when it was read, refill
+  line, days of cover, the freighter's trip and trips this week. Turn the `hub-upkeep` strategy off to feed your hubs yourself.
 - **Reclaims surplus FTL beacons.** A location only needs one beacon to hold
   comms, so SanHolo decommissions the extras in place — one per tick, keeping
   two at every location — and the refund goes back into your stockpile. Stowed
@@ -169,17 +216,31 @@ to watch what it's doing.
   transport pools are now explicitly demoted so the bot stops inflating a role
   that is already underused. For low-risk fleet growth, the unattended
   mining-drone cap is higher than the early-game defaults because miners do not
-  spend scarce rares or volatiles.
+  spend scarce rares or volatiles. A routine print paid from home's
+  stockpile waits if it would leave home with fewer than 150 rares: unattended
+  fleet growth, extra survey drones, and the beacon dropped after an asteroid
+  is diverted. Prints paid from a stockpile elsewhere are not held. Propulsors
+  printed against an active asteroid threat are never held.
 - **Re-arms logistics** when a real build goal is short on resources and a
   cached remote anchored stockpile looks useful, preferring the best haul
   source instead of waiting only for the last manually-armed supply line. When
   discovery pressure is low, the Progress view can now promote that haul move
-  directly as the best near-term climb.
+  directly as the best near-term climb. A `cross-system-haul` directive can
+  name the resources to fetch after a `#`, for example
+  `NEARBY-BELT-1,OTHER-BELT-1#rares`: the freighter then collects only
+  those resources, moves on from a source once it holds none of them, and
+  re-arming the line keeps the filter. A filtered line is re-armed only over
+  its sources in systems with a comms anchor, once those hold at least 100 of
+  the named resources summed across them, and is checked at most every 30
+  minutes; the standing line keeps every source, so one that gains an anchor
+  rejoins on the next re-arm.
 - **Diverts incoming asteroids** before impact: prints propulsors,
   deploys + activates them at the asteroid, drops a beacon at the
   impact target once diverted. Active in-system asteroids at or above
   50% impact likelihood are handled early instead of waiting for a late
-  high-certainty scramble.
+  high-certainty scramble. Once a rock in your home system is diverted,
+  idle propulsors left on it cruise back to your home base one at a time,
+  ready for the next threat, instead of sitting on the finished asteroid.
 - **Drives in-game AMI controllers** (transport, survey, mining) so the
   Replicant Space AI handles routine hauling, surveying, and resource
   gathering for you. If home-system mining or survey drones get stranded
@@ -194,154 +255,205 @@ to watch what it's doing.
   validation visit too, so promising stale remote worlds are revisited and
   rescanned before miners get sent there. Fully depleted remote worlds are now
   treated as “finish the recovery/validation leg, then come home”.
-- **A cockpit that starts you off.** The home screen opens with a **Needs
-  you** panel: an ordered list of what wants your attention (a help request
-  from the bot, an incoming asteroid with its impact time, a stalled
-  directive, an unsupported version, unread messages), each with one button
-  that opens the menu tab where you deal with it. On a fresh install it says
-  what is happening (connecting, bot stopped, running in dry-run) and the
-  one next step, with buttons to open Engine or, if you would rather play
-  yourself, Play; that row goes once the bot is running live. A help
-  request also has a **Dismiss** button, here and on Engine > Overview,
-  for one that outlived the job that raised it. Dismiss only hides the
-  current request: if the problem is still there, the bot raises it again.
-  Beside it,
-  **Objective** states the one thing the bot is working towards: the
-  directive with its current phase and how long since it last moved
-  (flagged when it has stalled), otherwise the official tutorial's current
-  step while its tracker can be trusted, otherwise what the bot is doing,
-  and "no objective yet" until the bot runs. **Blocked** groups what is stuck
-  rather than listing it: paused automation by kind with the count, how
-  long the oldest has waited and its most common error, older paused
-  records folded into one count, paused AMI controllers, the last hour's
-  errors and devices out of control range; "Nothing is blocked" when all is
-  well. Fleet > Overview's "Current blocker" card counts the same paused
-  automation. **Income** lists the six resources in order with the
-  stockpile at your home base and its **net** change over the last hour
-  (plus the same pair for wherever the vessel is, when that is somewhere
-  else), and which resources are being gathered across the empire. While
-  the vessel is away SanHolo reads the home stockpile every two and a half
-  minutes so the hourly change stays current. It is net because printing spends
-  the same stockpile, so it can go negative; with no reading from the
-  start of the hour it says "no reading yet" rather than guessing. The
-  panels refresh on their own (Needs you every 5 seconds, Income once a
-  minute) and stop polling while the tab is hidden. On a phone the deck is
-  one column in that order, Blocked starts folded, the map takes 45% of the
-  screen until you press **Full map**, and the status strip keeps only the
-  bot's state and any help request; the directive, the other replicant and
-  reservations move into Objective. Empty panels say what fills them, every panel shares one look for
-  loading and empty states in English, German and French (the objective's
-  next step and blocker, Engine > Overview and the map panels follow the
-  chosen language too; API errors and log lines stay as the game sent them), resources and
-  devices carry icons beside their names, and the top bar stays readable on
-  a phone.
-- **Galaxy map at true coordinates.** Zoom out from your system and the
+- **The Bridge: a living star map as the home screen.** http://localhost:8080
+  opens on a full-screen 3D map of the space around your home system: your
+  systems glow (home in white, yours in cyan, ones another player has claimed
+  in purple), hub rings mark the systems you hold with a hub, an amber pulse
+  marks the system your current directive is working on, and lines show the
+  real comms links between your relays and hubs. Each system is labelled with
+  what matters there (devices at home, miners working, claimed or unlinked),
+  hovering shows a card and clicking opens the system's overview. Drag to
+  rotate, scroll or pinch to zoom. Zoom out to the galaxy to see every
+  catalogued star, where your other replicant is heading with its arrival
+  time, and the Ark's current stop; zoom into a system to see its planets
+  (estimated ones drawn faint until scanned), its belt with sites and how
+  much is left, and where your devices are ("78 miners · 41 working").
+  Ships between systems show as dashed routes with an ETA, and an incoming
+  asteroid shows as a red marker with a live impact countdown; click it for
+  its card. The system panel has an Overview and a Devices tab. **List**
+  (or `L`) shows the same map as tables: your systems, nearby stars with
+  whether a relay there would link, transits, threats and discoveries. In a
+  browser that cannot draw 3D the list opens by itself. Each system also
+  carries a small six-colour **resource ring**: one segment per resource,
+  brighter the more of it the sites your surveys opened still hold (summed
+  site quantities, never the scan's "scarce" or "rich" words). The game
+  states a site's size only in the message announcing it, so SanHolo keeps
+  those amounts once seen; where a site is open but its size was never
+  announced, the ring follows what the open sites still hold and the card
+  reads "Open sites: 3 · structural, conductive". SanHolo reads each known
+  system's belt once a day, spread out, so a system with nothing open says
+  "belt known, sites not opened", "no asteroid belt" when its scan found
+  none, or "not surveyed yet" when nothing is known. All of this survives a
+  restart. A hub ring
+  turns amber when the hub has under two days of carbon and structural
+  beside it and red when it is inactive or under one day. Something that
+  happened in the last 15 minutes (a site worn out, a search finished, a
+  repair done, a hub going inactive, an asteroid) shows as a short **ping**
+  on its system, a still dot if you prefer reduced motion. A running trip
+  (hub deploy, scout, ferry miners, hub upkeep, fetch) draws its **route**:
+  solid behind the ship or freighter, dashed ahead, labelled with the job
+  and its ETA, gone when the job ends. The hover card
+  adds the hub's integrity and days of cover, the stock there, the three
+  biggest resources, what the fleet is doing (mining, searching, hauling,
+  idle) and the latest pings, and the list's Systems tab has the same
+  columns. The **map key** button beside History explains the rings and
+  switches the resources, hubs, activity and events layers on and off (your
+  browser remembers the choice). The top bar adds a **standing chip** for
+  each leaderboard you are on ("Distance #6") or within 30% of rank 10
+  ("XP 54,316 / 62,406"); the board the Climb goal works on also shows
+  its gap, aimed rank and ETA ("climb: 113 to #10, about 12 d"); click it
+  for Jobs > Progress. A top bar shows
+  each resource's home stock and net change over the last hour (`--` when
+  there is no reading yet, never a made-up 0), an amber ring when a resource
+  is under the rares reserve or short for the next build, and an **autopilot
+  pill** (AUTOPILOT, DRY RUN or STOPPED, with a red dot when the bot asks for
+  help) that opens Start, Stop, dry run, the current directive with Clear,
+  and Dismiss for a help request. Alerts at the bottom left list what needs
+  you, in order: an inbound asteroid with its countdown, a blocked job, the
+  bot's help request, a stopped or dry-run bot, unread mail, an idle pool
+  of ten or more devices that has a fix, a system another player claimed
+  while your devices are still in it, devices out of comms reach, and
+  paused automation. Each card carries one button that does the fix: Show
+  it on the map, Open the job, Ferry the miners or Bring them home (an
+  order preview that says what it replaces before you confirm), or
+  Dismiss, which hides that card for an hour. A claimed system offers one
+  button per kind of device to bring home: the miners, and each device
+  type that crosses systems only on a carrier (belt surveyors, propulsors),
+  fetched by the surge carrier; relays, beacons and hubs stay. A blocked
+  job offers Resume and a stalled directive offers Clear, each through its
+  preview. A paused AMI controller gets its own card with **Resume <type>
+  at <location>** (a preview, then the controller's current directive is
+  sent again); after two failed resumes in 24 hours the card says so and
+  offers **Recall the controller** instead. The list stays short: two or
+  more alerts of one kind become one card with their count and **Show
+  all**, at most three cards show at once, and quiet items (unread mail,
+  recently paused records) wait in a small "N quiet" tray that opens the
+  full list. The unread card has **Mark all read**, and a **Progress** link
+  when an achievement is among them. A paused record nobody has touched
+  for 72 hours counts as stale: it leaves the alerts and shows in Jobs as
+  "N stale, cleared", whose drawer lists them by kind. The Jobs panel lists every
+  job the bot is running or holding (the errand, a scout, a hub delivery,
+  a hub upkeep trip...) with its step, what it waits for and an ETA, or
+  "ETA unknown" when there is none, plus the vessel's own trip and print,
+  every autofactory that is printing (with its queue and when the print
+  completes), paused records folded into one line, and how many miners are
+  working; click a card to see every step, when it started, its deadline,
+  the last error and Cancel where cancel exists; the Jobs button carries
+  the count. Systems, the Fleet table and a device's inspector say why idle
+  devices are idle and what would fix it, and the map marks systems with
+  fixable idle devices in amber. Devices crossing between systems show as
+  dashed routes with their arrival time; click one for its inspector. A
+  green dot in the top bar means the data is live; it turns
+  amber when the poller stops refreshing and red when the game cannot be
+  reached. Labels never overlap: the home system, hubs, jobs and claims win
+  a crowded spot, and the rest appear as you zoom in. Keys: `G F P O C`
+  for the screens, `/` or `Ctrl+K` to search systems and screens, `L` for
+  the list, `1`/`2`/`3` for galaxy, our space and the open system, arrow
+  keys to step through systems (or device groups inside a system) with
+  `Enter` to open, `Esc` to close the top panel and then back out, `?` for
+  the full list. **Orders preview before they act.** The system panel's
+  Orders tab lists what you can do there (claim it with a hub, send idle
+  miners, bring the miners home, haul the stock home, link it with a
+  relay chain, deliver a relay, rescue stranded transports, fly the vessel
+  there, make it the home base, scan it, resolve an event, queue a print at
+  an autofactory, print on the vessel; a star you hold nothing in offers
+  scout, link and move base), and every order first shows a preview: its
+  cost per resource from the blueprint against the stock that pays, what is
+  left after and whether that dips under your reserve floors, when a
+  shortfall would close at the current rate, a print's time including the
+  queue ahead, what it waits for (a hub to be printed, the vessel held by
+  another job), and whether it queues behind the running job, runs beside
+  it or replaces it; a note says when the bot is stopped or in dry run.
+  Confirm sends it; Cancel does nothing. Queueing a print carries a
+  one-time confirm token, so a double click queues once, and no autofactory
+  takes more than three queue orders in ten seconds. "Bring every device
+  home" is shown greyed out with the reason (no order moves surveyors and
+  other non-miners home yet; bring the miners home instead). The palette
+  (`/` or `Ctrl+K`) now finds every catalogued star by name or designation
+  as well as your systems, screens and zoom levels, and lists the orders
+  that apply right now ("Claim NEARBY with a hub", "Bring the miners
+  home from SOL"); choosing one opens its preview. **Goals** (settings or
+  the palette) edits the standing rules: the resource reserve floors, the
+  claim-systems caps and order, hub supply cover, the miners and
+  recycling limits, and bringing stranded devices home (on by default:
+  belt surveyors and propulsors left in a claimed system, or one with no
+  work for them, come home on the surge carrier, one trip at a time), and
+  opening new worlds (on by default: where a belt you can command has a
+  free site slot and its open sites lack something you need, a survey
+  drone already there, one elsewhere in that system, or a spare from home
+  carried in your vessel starts searching; your hub systems first, then
+  relay-reached ones, home while the vessel is away; one run at a time, at
+  most two a day, nothing printed, asteroid defence first, a run that
+  takes over 6 hours or has 3 commands refused flies home and asks for
+  help, the two drones kept for exploring stay home, never a drone a
+  controller adopted, you
+  hold, or another job, reservation or replicant owns; once sites open,
+  Keep miners busy sends miners there), each
+  saved after a check, with a pause switch for all
+  goal-made jobs. On a phone the rail becomes a tab bar, alerts fold
+  into one bar with their count and the most urgent one (tap to open), jobs
+  fold into a one-line bar above the tabs, the map opens framed on all of
+  your systems, and every close button is a large round X. **Fleet,
+  Build and Comms open on the Bridge** (`F`, `P`, `C`, or the rail): Fleet
+  has an Overview (counts, posture, what is idle and why), the Roster (every
+  device with its commands; a code opens its inspector), Mining, and
+  Reserved (devices kept away from the bot, other replicants with their
+  errand); Build has the Factories with their queues (Remove, or queue a
+  print per factory), Blueprints ("can build now", "next"), the Catalogue,
+  Unlocks and Megastructures; Comms has the Inbox (decisions waiting for
+  your approval first, then your messages with mark read), BobNet with
+  send, the Network and an Activity log. Every order there previews before
+  it acts, including queueing a print. The Comms button shows your unread
+  count, and a new activity line shows briefly at the top. Old `?open=`
+  links and `/fleet`, `/build`, `/inbox`, `/messages` land on these
+  screens. **Jobs** (`O`) has your Goals (the current objective, every
+  goal with its settings and the pause switch, a directive order for every
+  directive kind plus Clear, each with its preview, the strategy switches
+  and the copilot), Progress (growth, rankings, achievements) and History
+  (what finished, failed or was cancelled in the last two weeks).
+  **Settings** (the gear beside SanHolo top left, then "All settings")
+  has your name, language and home base, a high-contrast and larger-text
+  switch this browser remembers, where your ship and home are (with a
+  line of API requests per minute for the poller, the bot, the errand and
+  the rest, how much of the API's one-minute window is left and how many
+  requests it refused), and the data links. Everything on one token shares
+  that window: requests wait for it rather than run into a refusal, the
+  errand gives way to the bot when it runs low, and a refused request is
+  never retried at once; the next one waits out the time the API asks for, at most a minute. Clicking SanHolo itself takes you back to the plain Bridge
+  with every screen closed. **History** under the map (or `H`) replays your space over
+  the last day, 3 days or week: drag the slider or press play, then Live
+  to return; time SanHolo did not record says "no data" rather than
+  showing your current state. Without WebGL the Bridge opens the list,
+  with a Retry button, instead of a blank screen.
+- **A cockpit that starts you off.** On a fresh install the Bridge's alerts
+  say what is happening (connecting, bot stopped, running in dry-run) and
+  the one next step, with a **Start** or **Go live** button; that alert
+  goes once the bot is running live. Alerts also carry a help request from
+  the bot (with **Dismiss**, for one that outlived the job that raised it;
+  if the problem is still there, the bot raises it again), an incoming
+  asteroid with its impact time, a stalled directive and unread messages,
+  each with the button that deals with it. Jobs > Goals states the one
+  thing the bot is working towards, and the top bar shows each resource's
+  home stockpile with its **net** change over the last hour (net because
+  printing spends the same stockpile; with no reading from the start of the
+  hour it says so rather than guessing). Empty screens say what fills them,
+  in English, German and French; game data stays as the game sent it
+  (device types, designations, resource names, API errors, log lines and
+  message bodies). Resources and devices carry icons beside their names.
+- **Galaxy map at true coordinates.** Zoom out from your space and the
   galaxy level draws every catalogued star (tens of thousands) where it
-  actually is, with the systems you hold coloured by presence tier (touched,
-  observed, controlled, productive), your home ringed and your ship marked,
-  including its course while travelling. Drag or use the arrow keys to pan,
-  scroll, pinch or +/- to zoom, N and P to step through your systems, Enter
-  to open a system's inspector and Z to zoom into the current system. The
-  List tab beside it is the plain-table equivalent. Under the map, a
-  **replay scrubber** plays back the last 24 hours, 3 days or 7 days of your
-  empire from SanHolo's own recorded history: drag, play at up to 60 frames a
-  second, or use space, the arrow keys, Home and End. Time SanHolo was not
-  running shows as a hatched gap and an explicit "no data", never as your
-  last known state, and times before presence history began show your ship's
-  track only.
-- **Galaxy-first cockpit** at http://localhost:8080 — a pannable, zoomable
-  star/system map is the home screen, and a guided **Play** menu translates
-  your current game state into a simple early-game loop for manual pilots.
-  Click any planet, belt, star, or device to open an inspector with its
-  detail and controls (a planet's type and signs of life are shown before it
-  is scanned, marked "(est.)" until a scan confirms them). Devices the system
-  map cannot place, elsewhere or in transit, are listed below it in a table
-  grouped by location (devices with no reported location are counted but are
-  not a place; a long list starts folded behind its count), and the fleet glyph legend appears once, above the
-  map; a top menu bar (**Play**, **Engine**, **Fleet**,
-  **Build**, **Intel**, **System**) holds the guided flow, bot controls,
-  fleet roster, blueprints, leaderboards/catalog, and settings; the Intel
-  menu now includes a **Progress** view that turns XP pace, build readiness,
-  fleet growth, and leaderboard movement into a clearer “what helps next?”
-  summary; leaderboard panels call out your visible rank plus recent up/down
-  movement, including the account-scoped identity used by Replicant Space v3;
-  nearby-star views show system hubs and wards, while the Fleet roster preserves
-  attachment, linked-device, and tag metadata. Fleet controls are derived from
-  each device's live advertised capabilities, explaining pending or unsupported
-  controls instead of guessing; directives, features, and compact settings show
-  why devices differ, while decommissioning remains separately confirmed and
-  host-safe. The Comms Network graph follows the same palette and remains
-  readable in the persisted high-contrast theme. The Build and Mining surfaces
-  now render in tighter content shells with scroll wrappers on the truly wide
-  tables, so they stop sprawling. System Settings now pre-fills the current
-  replicant name before rename. The guided Play surface also explains live
-  travel intent more plainly, including remote AMI orphan-recovery trips and
-  stale-intel validation legs, and its automation guidance now adapts to
-  new-player, dry-run, and already-live advanced-account states. It now includes
-  explicit first-run checks for no scan, no deployed devices, empty current
-  inventory, no build-ready blueprint, and stopped/dry-run automation. Play
-  and the Inbox, Fleet, Build and Intel menus no longer open with text
-  about what the page is for; Play leads with your mode and goes straight to
-  the current objective, and the Inbox is translated in full. The
-  Engine, Intel and BobNet overviews drop their card descriptions, and their
-  labels, buttons and the Fleet, Build and Intel menu titles are translated.
-  The
-  **Comms network** menu
-  maps owned FTL beacons, relays, and hubs, labels current
-  relay-range edges, and turns nearby unanchored systems into one-click colonise
-  directive targets. The guided Play loop now
-  also carries its own per-step actions, so scanning, fleet inspection, and
-  build follow-through are linked directly from the guided cards instead of
-  forcing menu hunting. Play and Progress now also use a stronger guide-layer
-  visual treatment, with clearer kickers, card depth, and section hierarchy so
-  the “what matters next?” surfaces stand apart from the denser ops panels; the Progress surface now
-  also calls out the current **Frontier** target so distance pushes and scout
-  goals are visible instead of implicit, and adds a clearer fleet-utilization
-  readout so underused capacity is visible without digging through raw device
-  tables. It now also surfaces a **Logistics** hint when a remote anchored
-  stockpile looks worth hauling and the freighter is sitting idle. Progress also
-  ranks evidence-backed trade, XP, reputation, distance, seasonal, and
-  infrastructure opportunities with reward, time, cost, and risk notes; these
-  recommendations are advisory and never perform irreversible strategic work.
-  The larger
-  operational menus now use bounded panels and push heavier detail into
-  explicit sub-tabs instead of forcing the top-level menu itself to become a
-  scroll container, and scrolling over an open menu now stays with the active
-  menu instead of dragging the background map. Engine and System now also open
-  into short overview tabs first, while Fleet, Build, and Intel keep the raw
-  command roster, full blueprint catalog, deeper intel, settings, and bot
-  automation as explicit advanced disclosures one step deeper. That cuts
-  default information overload without removing detail. System Overview now
-  also shows live travel posture, destination/ETA, scan freshness, and local
-  planet/moon coverage instead of behaving like a thin utility shell, and it
-  now explains the temporary “empty” handoff state while the API clears the
-  current location between systems. The Catalog panel
-  itself now also opens with a compact summary before the raw salvage,
-  depletion, event, and history tables, and Inbox/BobNet now call out quick
-  counts and actions before the long feed. The Mining surface now also leads
-  with a compact network summary so active production, idle miners, and the
-  top blocker are visible before the raw AMI/resource detail. Fleet Overview
-  now does the same for overall utilization, idle pools, and the main blocker
-  before the deeper readiness and AMI sections. It reports **Production** at
-  empire level, read from the mining controllers and their adopted drones
-  (which resources, at how many locations); a controller that is stowed or
-  travelling is not counted as producing. Its busy share counts **workers**
-  only: beacons, relays, hubs, the observatory and static sensors are listed
-  separately as infrastructure, and drones a running controller drives count
-  as working rather than idle. Intel Overview now acts as a
-  real command summary, pulling threat posture, growth focus, leaderboard
-  movement, frontier pressure, logistics posture, and inbox pressure into one
-  screen before you dive into the specialist tabs. Intel Threats now also opens
-  with a compact posture summary before the detailed asteroid bookkeeping.
-  The overview cards across Engine, Fleet, Mining, Build, Intel, and System
-  now also share a more consistent visual treatment instead of each tab
-  carrying its own ad-hoc inline styling.
-  Build Queue now also leads with a short queue posture summary before the raw
-  autofactory and unlock tables. When nearby
-  unexplored stars run dry, the same frontier planning can now promote the best
-  already-scouted unanchored world as the next anchor-chain expansion target
-  instead of silently dropping that path; a live ticker along the bottom shows
-  the latest activity and copilot advice.
+  actually is, with your systems, your home and your ship marked, including
+  its course while travelling. The **List** button beside the levels is the
+  plain-table equivalent. **History** (or `H`) replays your space over the
+  last 24 hours, 3 days or 7 days from SanHolo's own recorded history:
+  drag the slider or press play, then **Live** to return. Time SanHolo did
+  not record says "no data", never your last known state, and times before
+  presence history began show your ship's track only.
+- **Classic cockpit retired.** The older cockpit at
+  http://localhost:8080/classic is gone; that address and its
+  `/?open=<menu>&tab=<tab>` links now open the Bridge on the screen that
+  carries the same content (Engine → Jobs > Goals, Intel's progress,
+  rankings and achievements → Jobs > Progress, System → Settings).
 - **"While you were away" recap**: reopening the cockpit after an absence of
   half an hour or more shows a dismissible panel summarising what happened
   while you were gone — XP, fleet size, planets scanned, and reputation
@@ -363,30 +475,42 @@ to watch what it's doing.
   as a new visit, and a short one shows nothing at all.
 - **Beginner guidance**: the cockpit reads the official Replicant Space
   tutorials for both brand-new accounts and accounts with unfinished tutorial
-  steps. The current tutorial is shown as a persistent checklist and as
-  contextual guidance beside the relevant Play, Fleet, Intel, and other
-  cockpit surfaces. If the tutorial service is temporarily unavailable, the
-  checklist reports an unavailable/retry state and the rest of the dashboard
-  and bot continue to operate normally.
+  steps. The current step is the objective in Jobs > Goals, with contextual
+  guidance beside the relevant Fleet and Comms screens. If the tutorial
+  service is temporarily unavailable, the rest of the dashboard and bot
+  continue to operate normally.
   Accounts created before the game added tutorials never get one started,
   so the game reports them stuck on the first step for good. When the game
   shows no tutorial progress at all but the account has already earned
-  achievements, SanHolo hides the checklist and its hints.
-- **Safe tutorial actions**: the checklist can offer a one-click action only
+  achievements, SanHolo hides the step and its hints.
+- **Safe tutorial actions**: Jobs > Goals can offer a one-click action only
   for the current `bootstrap` / `scan_system` step. That action reuses the
   existing validated scan path and requires a fresh, matching server step;
   arbitrary fields, stale steps, destructive commands, travel, printing, and
   strategic actions are rejected. Every other tutorial step is guidance-only.
   Tutorial guidance never starts the bot or changes dry-run/live state: SanHolo
   remains stopped and in dry-run until you explicitly change those controls.
-  Every menu and tab has a shareable deep link, `/?open=<menu>&tab=<tab>`
-  (for example `/?open=fleet&tab=roster`); the address follows the open menu,
-  so a reload keeps it. The older `/inbox`, `/fleet`, `/intel`, `/build` and
-  `/messages` links redirect into the matching menu.
-  The **Fleet → Roster** tab also gives per-device manual commands —
-  deploy / recall / stow, and **Decommission** (with a confirm prompt) to
-  scrap a device you no longer need; the autofactory keeps its blueprint and
-  refunds ~60% of the print cost to the device's location.
+  Every screen and tab has a shareable link, `/?screen=<screen>&tab=<tab>`
+  (for example `/?screen=fleet&tab=roster`); the address follows the open
+  tab, so a reload keeps it. Older `/?open=<menu>` links and `/inbox`,
+  `/fleet`, `/intel`, `/build` and `/messages` land on the matching screen.
+  **Play by hand.** The **Fleet → Roster** tab and every device's inspector
+  list the commands that device accepts now — deploy, mine, send to a
+  location, recall, stow, stop and **Decommission** — and say why one is
+  off. Each opens a preview first (what it does, the flight time of a trip,
+  "the controller will re-task it" for a drone an AMI adopted); only its
+  Confirm sends anything. A device you command this way is **held by hand
+  for 2 hours**: no strategy, goal or job touches it until the hold ends,
+  you press **Give back to bot**, or you extend it with **Hold 2 h more**.
+  Holds survive a restart. **Decommission** shows the refund (about 60% of
+  the print cost, from the blueprint, landing where the device stands) and
+  only goes ahead once you type the device code; hubs, relays, beacons,
+  ships, AMI controllers and autofactories can never be decommissioned.
+  Right-click (or long-press on a phone) a system, belt or device on the
+  map for a short menu of its orders; a belt's rows in the system drawer
+  have **Mine here**, which picks a free drone and deploys and starts it.
+  With the bot stopped the status pill reads **MANUAL**: you have the con,
+  your orders run at once, and your holds still apply when the bot starts.
   Full keyboard navigation and a reduced-motion / high-contrast mode included.
 - **BobNet** — the galactic comms layer (channel-based chat over the FTL
   relay network) is surfaced in the cockpit's BobNet panel as collapsible
@@ -419,9 +543,7 @@ to watch what it's doing.
   fulfils at controllers at its exact location; it never trades without it. You
   can also set the **home base** (the location the
   bot consolidates resources into and builds its system hub) from the
-  cockpit — handy for hub-and-spoke play as your galaxy footprint grows. A
-  `relay-supply` upkeep strategy can top up an approved beacon-only system and
-  park the vessel there so the relay bootstrap can finish the command anchor.
+  cockpit — handy for hub-and-spoke play as your galaxy footprint grows.
   `observatory-expedition` carries the galactic observatory only to
   already-anchored frontier systems, prospects for new catalogue targets, and
   returns it home.
@@ -432,28 +554,19 @@ to watch what it's doing.
   trial — until they regenerate and re-open. Strategy enable/disable
   toggles you set from the cockpit also persist, so a strategy you
   switched off stays off across restarts instead of re-enabling itself.
-- **Game Director readout** — the Engine panel now leads with the current
-  objective, blocker, and next action before the advanced strategy list. The
-  same summary is echoed in the top status strip so manual pilots can see why
-  the bot is acting, waiting, or blocked without decoding every strategy name.
-  LIVE only ever means the data feed is fresh; everywhere the bot's mode is
-  shown (the strip, Engine Controls, the bot panel) it reads ARMED (commands
-  are real) or DRY-RUN. A help request shows its reason
-  in the strip, and clicking it opens Engine Overview with the blocker, what
-  to do about it and the actions that clear it. Long lines end at a whole
-  word, with the full text on hover.
-  Its action chips open the relevant cockpit menu/tab directly. The grouped
-  strategy list also marks the most recently firing strategy and shows the last
-  fire time per strategy, so you can tell what is actually hot without reading
-  the full activity feed. In a scanned system with no asteroid belt, the
-  exploration loop now keeps survey drones free from non-belt survey AMIs and
-  can print a local survey drone when needed so the bot can keep scanning
-  planets instead of silently stalling. The readout now also catches a
-  directive that has stopped moving: if the run behind it has paused or has not
-  advanced in half an hour, the objective card says so, names how long it has
-  been stuck and what the run last failed on, rather than reporting a held
-  directive as healthy progress. Objective colour follows that severity, so a
-  blocker is never painted in the same green as normal operation.
+- **Game Director readout** — Jobs > Goals leads with the current
+  objective: the directive with its phase and how long since it last moved
+  (flagged when it has stalled for half an hour, with its phase), otherwise
+  the official tutorial's current step, otherwise what the bot is doing,
+  with its blocker and next step. A help request shows its reason there and
+  as an alert with **Dismiss**. Long lines end at a whole word, with the
+  full text on hover. The strategy list in Jobs > Goals marks the most
+  recently firing strategy and shows the last fire time per strategy, so
+  you can tell what is actually hot without reading the full activity feed.
+  In a scanned system with no asteroid belt, the exploration loop keeps
+  survey drones free from non-belt survey AMIs and can print a local survey
+  drone when needed so the bot can keep scanning planets instead of
+  silently stalling.
 
 ## Download
 
@@ -533,14 +646,14 @@ san-holo version
    ```sh
    san-holo serve
    ```
-   Open http://localhost:8080. The cockpit opens on a live map of your
-   system — click a body to inspect it, use the top menu bar for the
-   fleet / build / intel panels, check **Needs you** for anything waiting
-   on you, and watch the **Activity** panel beside the map for the latest
-   log line and copilot advice.
+   Open http://localhost:8080. The Bridge opens on a live 3D map of your
+   space — hover or click a system, check the alerts for anything waiting
+   on you, and use the rail on the left (or `F`, `P`, `O`, `C`) for the
+   fleet, build, jobs and comms screens. `?` lists every shortcut.
 
-3. **Go live** when you're comfortable: open **Engine ▾** in the top bar,
-   click **Start**, then **Go live** — or start with `san-holo serve -live`.
+3. **Go live** when you're comfortable: click the **STOPPED** pill in the
+   top bar, click **Start**, then **Go live** — or start with
+   `san-holo serve -live`.
 
 ## Keep it running (Linux, systemd)
 
@@ -656,6 +769,127 @@ Never include `SAN_HOLO_TOKEN`, `credentials.json`, raw `/state.json`,
 issue. Releases are operator-only: users should install the published binary;
 only the operator creates release tags and publishes artifacts.
 
+`/state.json` also lists what the bot is working on under `Jobs`: one entry
+per job (each directive you or the bot set, a carrier still being brought
+home after an errand ended, a hub upkeep delivery, a maintenance drone being
+carried to a system that has none, the second-replicant errand), with its
+current step, what it is waiting for and an ETA when one is known. It also
+carries scout campaigns: active ones, and paused or finished ones for 14
+days after their last change.
+
+Every directive is a job, kept in the catalog, so jobs and what they hold
+survive a restart. Up to three jobs run at once. `hub-deploy`,
+`fetch-attached` and `cross-system-haul` can run beside other jobs; every
+other kind needs the vessel and runs alone, so a second one waits
+(`queued`, waiting for `role:vessel`, naming the job that holds it).
+`Leases` shows which job holds the vessel and which devices: a haul holds
+the cargo freighter, a carrier errand its surge carrier, and no other job or
+routine work touches a device a job holds. While an asteroid threatens home,
+a job that flies the vessel pauses (`preempted_by_defence`) and resumes once
+the threat has passed. A job whose device disappeared while SanHolo was
+stopped comes back paused (`device_missing`).
+
+`POST /actions/directive` works as before: a new vessel errand replaces the
+running one, and clearing stops the job the cockpit shows. `POST
+/actions/job` (form fields `kind` and `param`) adds a job without replacing
+anything, and `POST /actions/job/cancel` (field `id`) cancels one.
+
+**Goals** turn standing rules into jobs without you arming anything.
+`/state.json` lists them under `Goals` (with `GoalsPaused` and the spend
+ledger `GoalSpend`), and the bot seeds a fresh catalog with these:
+
+| Goal | Default | What it does |
+|---|---|---|
+| `resource-reserve` | on, floors rares 150 / carbon 1,000 / structural 2,000 | No bot spend takes home stock below a floor: hub prints, hub upkeep loads, maintenance drone prints and routine rares prints all read it. A floor you leave out of an edit keeps its default. |
+| `claim-systems` | off | Places your system hub in mining systems: prints one (`print-hub` job, cost reserved against home stock until the print starts; the game takes it then, and a print that has not started in 24 hours asks for help naming what the autofactory waits for) and chains a `hub-deploy` job that starts when the hub stands idle at home, then the next system. `max_total` counts every system hub you own (placed anywhere, including the home system, in flight or waiting at home), hubs printing and prints pending; `max_per_week` and `rares_budget_per_week` are checked against the ledger, so a restart cannot lift them. `order` is `"ranked"` (mining intel) or a list of systems; home, claimed systems, systems with any hub, excluded ones and ones commands cannot reach are never targeted. A hub you print or deploy by hand gets its deploy job too, never a duplicate. |
+| `keep-hubs-supplied` | on, `days_cover` 2, `max_trips_per_week` 3 | Every upkeep delivery to a remote hub is a `hub-upkeep` job that leases the freighter until it is home. |
+| `keep-miners-busy` | off, `max_ferries_per_day` 2, `accept` empty | Acts on the mining drones' idle reasons. Idle home miners whose reason names a belt of ours with room (a fresh site reading, a relay or hub of ours commanding there, nobody else's claim) are ferried there as a `ferry-miners` job; miners stranded in a claimed system come home as a `recall-miners` job (a belt-less system only when the vessel is already there). One move at a time, never while another job or an asteroid holds the vessel, a maintenance-station trip flies it or it is away from home; the home salvage reserve of miners stays. When nothing can move the goal says why (`no_room`, `home_reserve`, `daily_cap`...). `accept` lists idle reasons to leave alone. While it is on, `mining-network` stops arming ferries and claimed-system withdrawals itself. `clear_sites` (empty by default; `*` for every belt) lists belts where idle miners mine whatever is left, surplus included: a site stays active, and holds one of the belt's five slots, until every resource on it is gone, so mining the leftovers lets the sites close and survey open fresh ones; when a resource worth mining comes back, the miners move onto it. The vessel's own belt is left to the mining strategy. |
+| `recycle` | off, `min_idle_hours` 24, `max_per_day` 5, `mode` `ask` | Decommissions clear surplus for the refund of about 60 percent: a device idle for the minimum that no job or strategy can use (its idle reason offers no job; a miner a ferry could take is not surplus), in a system with a deployed autofactory. Hubs, relays, beacons, ships, AMI controllers and autofactories are never recycled whatever `never` or `types` say; `never` can only add types. In mode `ask` (default) each device is a decision in the inbox, approve creates one `recycle` job, deny or expiry leaves it alone for seven days; `mode` `auto` acts without asking inside the same bounds. `max_per_day` counts the ledger, approvals included, so a restart cannot lift it. How long a device has been idle is tracked per device (`StatusSince` on `/state.json` devices) and kept across restarts. |
+| `climb` | off, `boards` [fleet, xp, megastructure], `max_prints_per_day` 10 | Works toward the nearest reachable leaderboard rank: the next rank up when the board shows you, else rank 10. Fleet (the board counts active devices) closes by printing the cheapest unlocked device you already field whose cost holds no rares and no volatiles and that Recycle could not scrap as surplus (never mining drones), one at a time on a home autofactory, at most `max_prints_per_day` a day (10 at most, counted from the durable goal job log and spend ledger), never below a `resource-reserve` floor; each print carries a `climb-<unix>` tag. XP closes on its own and spends nothing, so the print budget always goes to the fleet board while it has a gap. The target the top bar shows is the board with the soonest ETA (XP from its measured rate, about an hour after a start), not the smallest raw gap. More prints than the budget, and any megastructure contribution (offered while that board has fewer than ten entries), are decisions, never acted on alone. Recycle keeps running: Climb counts its removals and prints to make up, and Recycle never decommissions a device Climb printed within a week. Every 10 prints it checks, an hour after the last, that your fleet board value rose by at least half of them; if not (or the board does not show you, so the rise cannot be read) it stops with `climb_no_effect` and asks a decision to resume. A megastructure contribution you approve runs as an `ark-contribute` job like one you arm yourself. Nothing in dry-run (it says what it would print); `climb_measuring`, `climb_passive`, `climb_reached`, `climb_checking`, `climb_no_effect`, `daily_cap`, `await_decision`, `below_reserve`... |
+| `keep-supply-line` | on, `sources` [], `filter` [] | The standing cross-system haul as a goal: haul-rearm re-arms it once its remote source has refilled with something you need, exactly as before. Empty `sources` keep the last haul you armed; naming `sources` (remote locations) sets the line here and bounds the refill search to them, and `filter` (with sources) limits the haul to those resources. Off, nothing is re-armed. The goal says what the line does: `supply_line_none`, `supply_line_standing`, `supply_line_hauling`. |
+
+`POST /actions/goal` edits one: `id` (the goal), `enabled` (`true`/`false`,
+optional) and `params` (JSON, validated, optional; an unknown field or an
+out-of-range limit is refused and nothing changes). `POST
+/actions/goals/pause` (`paused=true|false`) stops every goal creating new
+jobs while running ones finish. In dry-run goal jobs are created but never
+admitted (`dry_run`), so nothing is spent until you go live. Each goal says
+why it created nothing (`Waiting`: `total_cap`, `weekly_cap`,
+`budget_exhausted`, `below_reserve`, `no_target`...).
+
+```sh
+curl -s -X POST http://localhost:8080/actions/goal -d id=claim-systems -d enabled=true \
+  -d 'params={"max_total":4,"max_per_week":2,"order":["NEARBY","OTHER"],"rares_budget_per_week":1000}'
+curl -s http://localhost:8080/state.json | jq '.Goals[] | {ID, Enabled, Params, Waiting: .Waiting.Code}'
+```
+
+**Decisions** are how the bot asks before acting outside a goal's budget.
+When ClaimSystems would print the next hub but only a cap stops it
+(`max_total`, `max_per_week` or `rares_budget_per_week`), it raises one
+decision for that system (`/state.json` `Decisions`, the goal reads
+`await_decision`) instead of printing, and asks nothing else about it. A
+decision shows the cost and expires after 24 hours; expiry counts as deny.
+`POST /actions/decision` (`id`, `choice=approve|deny`) answers it. Approve
+creates the print and deploy jobs charged to a one-off allowance (the
+weekly caps do not count it; the reserve floors still apply, a decision
+never lowers one). An approval the bot cannot carry out yet (a floor in
+the way) stays `approved` and pending until it can; one whose target can
+no longer take a hub is recorded as `lapsed`, which is not a deny: the
+question may be asked again. Deny, or expiry, creates nothing and the
+same question is not asked again for seven days. Recycle asks the same
+way for each device it would decommission (`recycle_device`, showing the
+device, where it stands, how long it has been idle and the refund); an
+approval it cannot carry out yet (the day's cap) waits, one whose device
+went back to work lapses. `change_owner` and wipe are never automated,
+whatever a goal says.
+
+A job the bot cannot carry on with is `blocked` (a device gone after a
+restart, a parameter that no longer parses); a job merely waiting for a
+print, a transform or range is `waiting` and needs nothing from you. A job
+blocked for a missing device is re-queued by itself when the device is seen
+again; `POST /actions/job/resume` (`id`) re-queues any other blocked job
+once you have fixed its cause. `NeedsHelp` now points at the worst blocked
+job or the oldest open decision (`JobID` / `DecisionID`) rather than
+holding free text, and dismissing it does not raise the same pointer again.
+Outbound alerts fire for a new decision and for a job entering `blocked` or
+`failed`, never for `waiting`. The dismissal and the alert cooldowns live
+in memory, so after a restart the same pointer and the same alert are
+raised once more.
+
+```sh
+curl -s http://localhost:8080/state.json | jq '.Decisions[] | {ID, Key, Status, Cost, ExpiresAt}'
+curl -s -X POST http://localhost:8080/actions/decision -d id=dec-1760000000-claim-systems:NEARBY -d choice=approve
+curl -s -X POST http://localhost:8080/actions/job/resume -d id=job-1760000000-hub-deploy
+```
+
+```sh
+curl -s http://localhost:8080/state.json | jq '.Jobs[] | {ID, Kind, Status, Step: .Steps[.Step].Code, Waiting: .WaitingFor.Code, ETA, Leases}'
+curl -s http://localhost:8080/state.json | jq '.Leases | map_values(.JobID)'
+```
+
+`IdleReasons` says why idle devices are idle. Every idle or stowed device
+except beacons, relays, hubs, the observatory and sensors is in exactly one
+entry: a group of one device type at one place, a reason code (for example
+`home_surplus`: the belt offers only resources home already has plenty of),
+the strategy that declined the work, a suggested fix where there is one, and
+since when the reason has held. The running bot refreshes the list every 30
+seconds, so it is empty until the first tick after a start. Devices no
+strategy accounts for are listed as `unexplained`. A worn mining drone (20
+percent capacity or less) reads `low_capacity` when a maintenance drone stands
+in its system, `maintenance_due` while a maintenance-station trip is bringing
+one (naming that drone), `maintenance_held` while something keeps that
+strategy from starting a trip (an asteroid, a directive, the vessel away, a
+busy printer or the daily caps; `blocked` names it), and `no_maintenance`
+when nothing does. A maintenance-station trip that ends for a routine reason
+(the ride fell through, the drone was no longer a spare, the ferry left
+without it) shows as a cancelled job with that reason, not a failed one.
+The cockpit's belt resource bars read "unknown" rather than 0 percent while
+no site reading stands, for example after a read the game refused.
+
+```sh
+curl -s http://localhost:8080/state.json | jq '.IdleReasons[] | {Count, Subject, Code, Strategy, Fix: .Fix.Action, Since}'
+```
+
 ## Optional version checks
 
 SanHolo can call a self-hosted update endpoint, but it is off unless you
@@ -694,11 +928,26 @@ the environment (never in a file you commit, since each URL is a secret):
 
 | Variable | Sink |
 |---|---|
-| `SAN_HOLO_ALERT_NTFY_URL` | an [ntfy](https://ntfy.sh) topic URL |
+| `SAN_HOLO_ALERT_NTFY_URL` | a topic URL on an [ntfy](https://docs.ntfy.sh/install/) server; self-host your own, or use any ntfy server you trust |
 | `SAN_HOLO_ALERT_DISCORD_URL` | a Discord channel webhook URL |
-| `SAN_HOLO_ALERT_WEBHOOK_URL` | any URL; receives `{"kind","severity","text","key","at"}` as JSON |
+| `SAN_HOLO_ALERT_WEBHOOK_URL` | any URL; receives `{"kind","severity","text","key","at","link"}` as JSON |
+| `SAN_HOLO_PUBLIC_URL` | optional: where the Bridge is reachable from your phone (or `serve -public-url`) |
 
 With none set, alerts are off and nothing is logged about them.
+
+With `SAN_HOLO_PUBLIC_URL` set (for example the address of your VPN or
+reverse proxy), every notification carries a link that opens what it is
+about on the Bridge: the job, the system, or the alert's preview. ntfy
+uses it as the tap action, Discord puts it in the message, the webhook
+sends it as `link`. Without it, notifications are text only.
+
+Settings > Notifications shows which services are configured (by name;
+the URLs are never shown), lets you turn each kind of alert on or off and
+choose which service it goes to, sets quiet hours (in the server's time
+zone or one you name, such as `Europe/Berlin`) and sends a test, at most
+one a minute. During quiet hours only the kinds ticked "In quiet hours"
+are sent; out of the box those are an inbound asteroid, a stuck bot, a
+request for help and a decision about to expire.
 
 Sink URLs must be `https://` and public. If your sink is on your own
 network (a self-hosted ntfy on `192.168.x.x`, say), set
@@ -718,6 +967,11 @@ You are alerted when:
   per device);
 - the bot needs attention, for example when it is stuck repeating a failing
   action;
+- the bot is stuck: the same error at least three times in a row, over at
+  least five minutes, with no XP gained (the Bridge offers to switch that
+  strategy off, through a preview);
+- a decision waits for you, and again when it has two hours left before it
+  is denied by default; a job is blocked or has failed;
 - the game pushes an event to SanHolo's `/webhook` endpoint.
 
 Alerts are rate-limited: the same condition repeats at most once per
@@ -733,9 +987,13 @@ and webhook events have a small hourly budget of their own.
   does not send any state-changing commands.
 - Every action is logged to the in-cockpit Activity panel before it fires.
 - The copilot's advice is **suggestive by default** — you decide whether
-  to act on it. You can also set an explicit directive from the cockpit
+  to act on it. A directive it picks that spends (a `build`), hops the
+  vessel (`relocate`) or sits outside its menu waits in the decisions inbox for your approval
+  (`-copilot-mode ask`, the default); `-copilot-mode apply` lets it set
+  them directly as before. You can also set an explicit directive from the cockpit
   (focus_resource / build / explore / relocate / scout /
   observatory-expedition / ferry-miners / recall-miners / trade_expedition /
+  fetch-attached / hub-deploy /
   ark-contribute) to
   steer the bot, or clear it. `relocate` is the only way to authorise an
   interstellar hop — the bot recalls + stows its fleet first and will not
@@ -748,7 +1006,7 @@ and webhook events have a small hourly budget of their own.
   the observatory back.
   Autonomous scouting ships disabled; enable the `scout` strategy from the
   cockpit to let the bot pick and visit nearby stars on its own.
-  `ferry-miners` (param: a target belt designation like `ACHURD-8-L4`) ships
+  `ferry-miners` (param: a target belt designation like `NEARBY-BELT-1`) ships
   idle mining drones out to a spoke belt via a surge-capable carrier, where
   that system's AMI controller adopts and runs them — the hub-and-spoke
   restaff move. Each controller adopts at most three miners, so the run
@@ -792,6 +1050,55 @@ and webhook events have a small hourly budget of their own.
   out of control range on arrival or a rejected device, stops the run,
   clears the directive and asks for help. Clearing the directive yourself
   while the run's devices still exist also raises a help request.
+  `fetch-attached` (param: `SYSTEM:device_type`, for example
+  `SOL:belt_surveyor`) brings home devices that cannot cross systems on
+  their own and do not fit in a hold, such as belt surveyors. It takes an
+  idle surge carrier with nothing attached from your home system, checks
+  the route with a dry run, flies to where the devices stand, attaches
+  them one at a time (idle ones first) up to what the carrier holds, flies
+  home, detaches them, and repeats until none are left there. It refuses to
+  start unless a relay or hub gives command in that system and at least one
+  of the devices reads in control range, and it only ever attaches devices
+  that read in range. A device that refuses to attach is skipped; after
+  three refusals, or if nothing can be attached when the carrier arrives,
+  the carrier flies home with whatever it holds, the run stops there and
+  asks for help. An asteroid threatening home brings the carrier straight
+  back. A run stops after 48 hours. If a run ends, or you clear or replace
+  the directive, while its carrier is still out or loaded, SanHolo keeps
+  bringing that carrier home and unloading it, and asks for help naming the
+  carrier and where it is while it cannot be reached. Your vessel stays put,
+  and only you can set it (the copilot cannot).
+  `hub-deploy` (param: a target system like `NEARBY`, optionally with a
+  Lagrange point: `NEARBY:NEARBY-6-L5`) places a newly printed system
+  hub in another system to claim it. It waits until a newly printed hub
+  stands idle at an autofactory in your home system (so you can set it
+  while the hub still prints). A hub ever seen active or at a Lagrange
+  point is never taken, whatever it reads later, so your placed hubs stay
+  where they are. It compacts the hub (a hub compacted by an earlier run is
+  picked up where it stopped), waits out the compaction (30% of the hub's
+  print time), attaches it to an idle surge carrier at home, and tries to attach a
+  spare maintenance drone standing beside it (one always stays home; if the
+  carrier refuses the drone, the run goes on without it). After a dry run it
+  flies to the Lagrange point, detaches, sets the drone patrolling, sends the
+  carrier home, unfurls the hub, waits out the unfurl and activates it.
+  Without a Lagrange point in the param it uses the system's catalogue entry
+  point when that is an L4/L5 (the game puts it at the planet nearest the
+  belt), else the L4/L5 where one of your relays or beacons stands. Last, the
+  cargo freighter brings one load of upkeep stock (185 carbon and 315
+  structural, less if home holds less) from home and drops it at the hub;
+  if the freighter is out carrying another load, it skips the drop and asks
+  for help instead. Nothing happens in the home system while an asteroid
+  threatens it.
+  After that one drop the `hub-upkeep` strategy keeps the hub stocked (see
+  below). It refuses to start unless a relay or hub gives
+  command in that system with a device of yours there in control range, the
+  star catalogue shows no hub there, no other hub has claimed it, and home
+  holds at least 150 rares. It prints nothing. Any step the game refuses
+  (compact, unfurl, activate) stops the run and asks for help naming the
+  step; a hub that refuses to attach three times, an hour apart, does too.
+  The directive replaces any other, so a running cross-system haul pauses
+  until you set it again. Runs stop after 7 days; the carrier is looked
+  after the same way as a fetch-attached carrier. Only you can set it.
 - **Running a second replicant.** If you create another replicant on the same
   account, keep the bot's hands off its vessel and kit by reserving the
   vessel: `curl -X POST -d 'code=<8-hex device code>&reserve=true'
@@ -830,6 +1137,122 @@ and webhook events have a small hourly budget of their own.
   it waits) beside the replicant in the cockpit header. Posting again replaces
   it and clears a stopped errand; add `-d step=<step>` to resume at a given
   step, or post `clear=true` to remove it.
+- **Sending the other replicant to scout nearby stars.** A scout errand
+  looks for a new base around an anchored harbour without you watching. It
+  stops the replicant mining, stows a spare beacon into its vessel (flying to
+  the beacon first), then visits each star you list in turn: it checks that
+  the harbour beacon is still deployed (if not, it stops and asks before any
+  departure), previews the trip, travels, runs a system scan, records the
+  star's belts (and their open sites), salvage sites, shops and whether a hub
+  or ward claims it, and flies back to the harbour. A leg that is still at
+  its star 25 minutes after arriving heads back regardless, as does one that
+  has not arrived 20 minutes after leaving or turns up somewhere else. The
+  trip back is never abandoned: a refused trip is retried every minute or
+  two for as long as the vessel is away, with a needs-help notice that
+  leaves the errand running. A star qualifies
+  when it has a salvage site holding structural, conductive or carbon, or a
+  belt with an open site. Scouting stops once two stars qualify; if none of
+  your stars qualifies it tries the fallback list once. It then raises a
+  needs-help alert with the stars ranked and stops: it never settles, you
+  pick the base. It only ever sends travel, a system scan, stop mining and a
+  stow of the spare beacon, and never addresses the devices you list under
+  `protect` or any vector charge or replicant matrix (refused by device
+  type, listed or not). Arm it with:
+
+  ```sh
+  curl -X POST http://localhost:8080/actions/errand -d kind=scout \
+    -d 'replicant=<replicant code>' -d 'harbour=<STAR-N>' \
+    -d 'harbour_beacon=<beacon deployed at the harbour>' \
+    -d 'stow_beacon=<spare beacon to carry>' \
+    -d 'stars=<STAR>,<STAR>' -d 'fallback=<STAR>,<STAR>' \
+    -d 'protect=<device code>,<device code>'
+  ```
+
+  The cockpit's Fleet screen (Reserved tab) shows the step, the star being
+  scouted and each star's result beside the replicant.
+
+- **Sending the other replicant to found a base.** Once you have picked a
+  star from the scout report, a settle errand moves the replicant there and
+  starts a base without you watching. It stops the replicant mining, loads
+  its vessel from the harbour stockpile (rares first, up to 200), checks
+  the harbour beacon is still deployed, previews and makes the trip, and
+  deploys the founding beacon the moment it arrives, before anything else.
+  The beacon deploy is retried every 30 seconds and counts only once a read
+  shows it deployed; if it is not down within 22 minutes, the replicant
+  flies back to the harbour (the help then lists any cargo still aboard) and
+  keeps retrying that trip until it is home rather than stopping away from
+  an anchor. Once anchored, it deposits the cargo at the base, mines the
+  salvage site for
+  structural and then conductive until a survey drone's cost is covered
+  (checking the stockpile grows, restarting a mine that stops after landing
+  some, and moving on only when the salvage reports that resource gone),
+  flies to the belt and tries once to mine a site there that reports carbon
+  (a belt is mined only from the belt itself) and records the result, mines
+  until the belt stockpile covers the carbon the print lacks, hauls it back
+  to the base, and prints one survey
+  drone when the base stockpile covers the full blueprint and keeps at least
+  20 rares. Prints are capped at one a day and three in all. It then raises
+  a needs-help report and stops. It only ever sends travel, a deploy of the
+  founding beacon, collect, deposit and a survey-drone print on its own
+  vessel, and mine or stop mining at the named salvage and belt, and never
+  addresses the harbour beacon, the devices you list under `protect` or any
+  vector charge or replicant matrix (refused by device type). Arm it with:
+
+  ```sh
+  curl -X POST http://localhost:8080/actions/errand -d kind=settle \
+    -d 'replicant=<replicant code>' -d 'harbour=<STAR-N>' \
+    -d 'harbour_beacon=<beacon deployed at the harbour>' \
+    -d 'stow_beacon=<founding beacon stowed in the vessel>' \
+    -d 'base=<BASE-N>' -d 'salvage=<BASE-N-SAL-N>' -d 'belt=<BASE-BELT-N>' \
+    -d 'protect=<device code>,<device code>'
+  ```
+
+  The Fleet screen (Reserved tab) shows the step, the base, whether it is
+  anchored, the belt test and the prints sent.
+
+- **Growing the other replicant's base.** Once a base is anchored, a grow
+  errand keeps it growing for as long as it stays armed, one action every
+  30 seconds at most. It works toward two survey drones and two mining
+  drones: it picks the next print (survey drones first), works out what the
+  base lacks for it (reading the cost from the blueprints), mines that where
+  it can be found (the salvage while it lasts, else a belt site that reports
+  it, with the replicant at the belt), hauls belt stock back to the base and
+  prints there. Prints are capped at one a day and four in all, never leave
+  fewer than 20 rares, and the next print waits until the last one has shown
+  up as a drone. It counts and commands every survey and mining drone of
+  the replicant's at the base or the belt, listed under `drones` or not
+  (`drones` is optional), and leaves anyone else's alone. Each one is put
+  to work: survey drones fly to the belt and search for new sites while
+  the belt has fewer than five, mining drones fly to the belt and mine what
+  the base needs most. With nothing to print, the replicant keeps mining the
+  scarcest resource at the belt and the errand checks in every 30 minutes.
+  A failed read (a rate limit or a server error) never stops it: it waits a
+  minute more after each one in a row, at most ten, with a notice until a
+  read works again. It never leaves the base's system, never
+  addresses the anchor beacon, the devices under `protect` or any vector
+  charge or replicant matrix (refused by device type), and only ever
+  sends travel inside the system, mine and stop mining at the named salvage
+  and belt, collect, deposit and a survey or mining drone print on its own
+  vessel, and deploy, travel, search and start_mining to its drones. A step
+  refused three times stops it with a needs-help alert, but only while the
+  anchor beacon reads deployed in the base's system; otherwise it raises a
+  notice and keeps going. Arm it with:
+
+  ```sh
+  curl -X POST http://localhost:8080/actions/errand -d kind=grow \
+    -d 'replicant=<replicant code>' -d 'base=<BASE-N>' \
+    -d 'salvage=<BASE-N-SAL-N>' -d 'belt=<BASE-BELT-N>' \
+    -d 'anchor=<beacon anchoring the base>' \
+    -d 'protect=<device code>,<device code>'
+  ```
+
+  Add `-d 'drones=<drone code>,<drone code>'` to name drones up front; the
+  errand finds the replicant's drones in the system either way.
+
+  The Fleet screen (Reserved tab) shows the base, the survey and mining
+  drones against the target, the base stockpile, the next print (or a print
+  still landing), what the replicant mines and the prints sent. Clear the
+  errand to stop it.
 
 ## Troubleshooting
 
@@ -851,15 +1274,15 @@ and webhook events have a small hourly budget of their own.
 - **Bot is running but my XP / inventory isn't changing** — usually
   one of three things:
   1. **Belt depleted, waiting on the survey AMI** to open new mining
-     sites. Expand the bottom **ticker** to see recent activity — if you
+     sites. Open **Comms → Activity** to see recent activity — if you
      see survey drones cycling "searching", that's the AMI working. To
-     force a fresh scan, click a planet or belt on the map and use the
-     **Scan** button in its inspector.
-  2. **Dry-run is still on.** The top bar shows a `dry-run` badge — if it's
+     force a fresh scan, open the system on the map and use the
+     **Scan** order in its drawer.
+  2. **Dry-run is still on.** The autopilot pill in the top bar reads DRY-RUN — if it's
      there, the bot is choosing actions but not sending them. Open
-     **Engine ▾** and click **Go live**.
-  3. **A device got paused.** Open **Fleet ▾ → Devices** — paused devices
-     show in the fleet roster (and AMI status below it). Resume the device
+     the pill and click **Go live**.
+  3. **A device got paused.** Open **Fleet → Roster** — paused devices
+     show in the roster (and AMI status on Fleet → Overview). Resume the device
      from the API docs (auto-resume from the cockpit is on the roadmap).
 
 ## Roadmap
@@ -888,3 +1311,8 @@ license at that point.
 Built against the [replicant.space](https://replicant.space) API.
 SanHolo is an unofficial third-party client; not affiliated with or
 endorsed by replicant.space.
+
+Third-party components shipped inside the binary: [three.js](https://threejs.org)
+0.186.1 (MIT licence) draws the map; the Chakra Petch, IBM Plex Sans and
+JetBrains Mono fonts are under the SIL Open Font License 1.1. Their licence
+texts ship beside them in the binary's static assets.
