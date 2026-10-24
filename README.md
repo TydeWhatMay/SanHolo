@@ -5,8 +5,8 @@ An autonomous client for [replicant.space](https://replicant.space) — plays
 the game on your behalf and gives you a live mission-control dashboard
 to watch what it's doing.
 
-> **Status**: pre-release binaries. Source code will be published once the
-> client stabilises. Run with `--dry-run` (the default) until you trust it.
+> **Status**: pre-release. SanHolo is distributed as pre-built binaries and a
+> container image. Run with `--dry-run` (the default) until you trust it.
 
 ## What it does
 
@@ -1350,7 +1350,6 @@ refuses every event.
 
 - Code-signed macOS/Windows binaries
 - `.deb` / `.rpm` / Homebrew tap / Scoop bucket
-- Source code release once API stabilises
 - Native window app (likely Wails)
 
 ## Issues and feedback
