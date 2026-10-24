@@ -570,7 +570,14 @@ to watch what it's doing.
 
 ## Download
 
-Pre-built binaries are on the [Releases page](https://github.com/lhaig/SanHolo/releases/latest).
+Pre-built binaries are on the [Releases page](https://github.com/TydeWhatMay/SanHolo/releases/latest).
+Each release is also published as a container image,
+`ghcr.io/tydewhatmay/sanholo:<version>` (linux amd64 and arm64, non-root,
+no shell). It is built for the hosted service and starts in hosted mode by
+default; to run it yourself, override the command, for example
+`docker run ghcr.io/tydewhatmay/sanholo:<version> serve -addr 127.0.0.1:8080`
+with your credentials passed in through `SAN_HOLO_TOKEN` and
+`SAN_HOLO_CODE`.
 
 Pick the one that matches your machine:
 
@@ -595,7 +602,7 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 ```sh
 # Download (replace vX.Y.Z with the latest tag and pick your platform)
 curl -L -o san-holo \
-  https://github.com/lhaig/SanHolo/releases/download/vX.Y.Z/san-holo-vX.Y.Z-linux-amd64
+  https://github.com/TydeWhatMay/SanHolo/releases/download/vX.Y.Z/san-holo-vX.Y.Z-linux-amd64
 chmod +x san-holo
 
 # Optional: move it onto PATH
@@ -890,6 +897,37 @@ no site reading stands, for example after a read the game refused.
 curl -s http://localhost:8080/state.json | jq '.IdleReasons[] | {Count, Subject, Code, Strategy, Fix: .Fix.Action, Since}'
 ```
 
+## Log output
+
+`serve -log-format json` also writes every activity-log line to stdout as one
+JSON object (`time`, `level`, `strategy`, `message`). Messages over 2 KB are
+truncated and your API token is never logged. The default is `off`.
+
+`serve -hosted`, `-hosted-allow-any-bind`, `-hosted-tenant`,
+`-hosted-proxy-pubkey`, `-hosted-vapid-public-key`, `-hosted-alert-url`, `-hosted-alert-identity-file`,
+`-credentials-source` and the `-qm-*` flags are for the
+hosted service only; without `-hosted` they do nothing and all but `-hosted`
+itself are refused.
+
+`serve` now starts listening before its first full poll finishes: the map shows
+"Loading the galaxy..." until it does, and the bot waits for that poll before
+acting. On SIGTERM or SIGINT the bot finishes the action it is running, then
+the process exits within 18 seconds.
+
+## Health check
+
+`GET /healthz` answers `200 ok` while the bot loop ticked and the poller read
+your replicant within the last 2 minutes, and `503 bot stalled` or
+`503 poller stalled` otherwise. A bot you stopped yourself is not stalled. It
+returns no game data, so it is safe to point your own uptime monitor at. While
+the first poll after start-up is still running it answers `200 starting` (for
+at most 10 minutes, then `503 warm-up stuck`).
+
+If you put the Bridge behind a reverse proxy on the internet, `serve -csrf`
+makes every POST carry a CSRF token (a `__Host-sanholo_csrf` cookie, sent back
+as `X-CSRF-Token`; the Bridge does this itself). The cookie is `Secure`, so it
+needs HTTPS or `localhost`.
+
 ## Optional version checks
 
 SanHolo can call a self-hosted update endpoint, but it is off unless you
@@ -913,7 +951,7 @@ Endpoint response:
 {
   "latest_version": "v0.4.0",
   "minimum_supported_version": "v0.2.0",
-  "release_url": "https://github.com/lhaig/SanHolo/releases/latest",
+  "release_url": "https://github.com/TydeWhatMay/SanHolo/releases/latest",
   "message": ""
 }
 ```
@@ -972,13 +1010,23 @@ You are alerted when:
   strategy off, through a preview);
 - a decision waits for you, and again when it has two hours left before it
   is denied by default; a job is blocked or has failed;
-- the game pushes an event to SanHolo's `/webhook` endpoint.
+- the game pushes an event to SanHolo's `/webhook` endpoint (signed; see
+  below).
 
 Alerts are rate-limited: the same condition repeats at most once per
 cooldown, a condition that stays clear for two checks and then comes back
 alerts again straight away, and an hourly cap stops a flood with a single
 notice. Critical alerts (an inbound asteroid) keep some room past the cap,
 and webhook events have a small hourly budget of their own.
+
+The game's webhook is optional (the game marks it deprecated in favour of
+its event stream, which SanHolo already reads). If you register one
+(`POST /v1/accounts/webhook` with your Bridge's public HTTPS URL plus
+`/webhook`), SanHolo answers the game's verification challenge, and you
+then set the `webhook_secret` the game returns in
+`SAN_HOLO_WEBHOOK_SECRET`. Every delivery must carry a valid
+`X-Replicant-Space-Signature`; without the variable set, `/webhook`
+refuses every event.
 
 ## Safety defaults
 
@@ -1099,6 +1147,17 @@ and webhook events have a small hourly budget of their own.
   The directive replaces any other, so a running cross-system haul pauses
   until you set it again. Runs stop after 7 days; the carrier is looked
   after the same way as a fetch-attached carrier. Only you can set it.
+- **Creating a second replicant from the Bridge.** Print an empty replicant
+  matrix and stow it in a vessel, matrix container or system hub that stands
+  where your own matrix is. Build > Factories then offers **Create a second
+  replicant** for it. The preview shows both matrices, the cradle and where,
+  whether the game's requirements are met, and that it cannot be undone; you
+  can name the new replicant, and the order only goes through once you type
+  the empty matrix's device code. The game states no resource cost beyond the
+  matrix and cradle you already hold. A matrix an armed errand protects is
+  refused. Only you can do this: no strategy, goal, errand or copilot ever
+  creates a replicant. The new one appears in the other-replicants list at
+  once; reserve its vessel (below) so the bot leaves it alone.
 - **Running a second replicant.** If you create another replicant on the same
   account, keep the bot's hands off its vessel and kit by reserving the
   vessel: `curl -X POST -d 'code=<8-hex device code>&reserve=true'
@@ -1136,7 +1195,9 @@ and webhook events have a small hourly budget of their own.
   The errand survives restarts and shows its step (and the arrival time while
   it waits) beside the replicant in the cockpit header. Posting again replaces
   it and clears a stopped errand; add `-d step=<step>` to resume at a given
-  step, or post `clear=true` to remove it.
+  step, post `resume=true` to restart a stopped errand where it stopped
+  (its plan, print history and caps are kept), or post `clear=true` to
+  remove it.
 - **Sending the other replicant to scout nearby stars.** A scout errand
   looks for a new base around an anchored harbour without you watching. It
   stops the replicant mining, stows a spare beacon into its vessel (flying to
